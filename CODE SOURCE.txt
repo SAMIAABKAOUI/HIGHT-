@@ -1,0 +1,67 @@
+---------------------------------- Libraries: ----------------------------------
+library IEEE;
+use IEEE.std_logic_1164.all;
+use work.hight_package.all;
+----------------------------------- Entity: ------------------------------------
+entity HIGHT is
+	port (
+		txt_in: in std_logic_vector (0 to 63);
+		mk: in std_logic_vector (0 to 127);
+		clk: in std_logic;
+		reset: in std_logic;
+		encrypt: in std_logic;
+		txt_out: out std_logic_vector (0 to 63) );
+end HIGHT;
+-------------------------------- Architecture: ---------------------------------
+architecture HIGHT of HIGHT is
+------------------------------- Type Definition --------------------------------
+type states is (KEY_SCHEDULE, INITIAL, ROUND, FINAL,
+INVERSE_FINAL, INVERSE_ROUND, INVERSE_INITIAL, OUTPUT);
+----------------------------- Signals Declaration ------------------------------
+signal STATE: states;
+signal wk: std_logic_vector (0 to 63);
+signal sk: std_logic_vector (0 to 1023);
+signal txt: std_logic_vector (0 to 63);
+-------------------------------- Logic of FSM ---------------------------------
+begin
+	process (clk, reset)
+	begin
+		if reset = ’1’ then
+			STATE <= KEY_SCHEDULE;
+		elsif clk’event and clk=’1’ then
+			case STATE is
+				when KEY_SCHEDULE =>
+					WhiteningKeyGeneration (mk, wk);
+					SubkeyGeneration (mk, sk);
+					if encrypt = ’1’ then
+					STATE <= INITIAL;
+					else
+					STATE <= INVERSE_FINAL;
+					end if;
+					txt <= txt_in;
+				when INITIAL =>
+					InitialTransfomation (wk, txt);
+					STATE <= ROUND;
+					
+				when ROUND =>
+					RoundFunction (sk, txt);
+					STATE <= FINAL;
+				when FINAL =>
+					FinalTransfomation (wk, txt);
+					STATE <= OUTPUT;
+				when INVERSE_FINAL =>
+					inverseFinalTransfomation (wk, txt);
+					STATE <= INVERSE_ROUND;
+				when INVERSE_ROUND =>
+					inverseRoundFunction (sk, txt);
+					STATE <= INVERSE_INITIAL;
+				when INVERSE_INITIAL =>
+					inverseInitialTransfomation (wk, txt);
+					STATE <= OUTPUT;
+				when OUTPUT =>
+					txt_out <= txt;
+			end case;
+	 end if;
+end process;
+end architecture;
+
